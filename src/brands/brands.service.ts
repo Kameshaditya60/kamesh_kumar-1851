@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Role } from '../users/role.enum';
+import { User } from '../users/user.entity';
 import { Brand } from './brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
@@ -29,13 +36,36 @@ export class BrandsService {
   }
 
   async create(dto: CreateBrandDto, createdById: string): Promise<Brand> {
-    const brand = this.brands.create({
-      name: dto.name,
-      description: dto.description ?? null,
-      logoUrl: dto.logoUrl ?? null,
-      createdById,
+    return this.brands.manager.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const brands = manager.getRepository(Brand);
+
+      const target = await users.findOne({ where: { id: dto.userId } });
+      if (!target) {
+        throw new NotFoundException(`User ${dto.userId} not found`);
+      }
+      if (target.role !== Role.BRAND) {
+        throw new BadRequestException(
+          'Brand can only be created for a user with role BRAND',
+        );
+      }
+      if (target.brandId !== null) {
+        throw new ConflictException('User already has a brand assigned');
+      }
+
+      const brand = brands.create({
+        name: dto.name,
+        description: dto.description ?? null,
+        logoUrl: dto.logoUrl ?? null,
+        createdById,
+      });
+      const saved = await brands.save(brand);
+
+      target.brandId = saved.id;
+      await users.save(target);
+
+      return saved;
     });
-    return this.brands.save(brand);
   }
 
   async update(id: number, dto: UpdateBrandDto): Promise<Brand> {
