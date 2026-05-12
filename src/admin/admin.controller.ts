@@ -13,11 +13,13 @@ export class AdminController {
     const user = await this.users.create({
       email: dto.email,
       password: dto.password,
+      role: dto.role,
     });
     return {
       id: user.id,
       email: user.email,
       role: user.role,
+      brandId: user.brandId,
       createdAt: user.createdAt,
     };
   }

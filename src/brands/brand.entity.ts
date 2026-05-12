@@ -12,27 +12,27 @@ import { User } from '../users/user.entity';
 @Entity({ name: 'brands' })
 export class Brand {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string | null;
+  description!: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  logoUrl: string | null;
+  logoUrl!: string | null;
 
   @Column({ type: 'uuid' })
-  createdById: string;
+  createdById!: string;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'createdById' })
-  createdBy: User;
+  createdBy!: User;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
