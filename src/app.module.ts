@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Brand } from './brands/brand.entity';
+import { BrandsModule } from './brands/brands.module';
 import { SeedersModule } from './seeders/seeders.module';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     AdminModule,
+    BrandsModule,
     SeedersModule,
   ],
   controllers: [AppController],
