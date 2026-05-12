@@ -7,7 +7,7 @@ import { JwtPayload } from './jwt-payload.type';
 
 export interface AuthResult {
   accessToken: string;
-  user: { id: string; email: string; role: Role };
+  user: { id: string; email: string; role: Role | null };
 }
 
 @Injectable()

@@ -25,26 +25,26 @@ export class UsersService {
   }
 
   async create(params: {
-    email: string;
-    password: string;
-    role: Role;
-  }): Promise<User> {
-    const existing = await this.findByEmail(params.email);
-    if (existing) throw new ConflictException('Email already in use');
+  email: string;
+  password: string;
+  role?: Role | null;
+}): Promise<User> {
+  const existing = await this.findByEmail(params.email);
+  if (existing) throw new ConflictException('Email already in use');
+  const hash = await bcrypt.hash(params.password, BCRYPT_ROUNDS);
+  const user = this.users.create({
+    email: params.email,
+    password: hash,
+    role: params.role ?? null,
+  });
+  return this.users.save(user);
+}
 
-    const hash = await bcrypt.hash(params.password, BCRYPT_ROUNDS);
-    const user = this.users.create({
-      email: params.email,
-      password: hash,
-      role: params.role,
-    });
-    return this.users.save(user);
-  }
 
   async ensureExists(params: {
     email: string;
     password: string;
-    role: Role;
+    role?: Role | null;
   }): Promise<User> {
     const existing = await this.findByEmail(params.email);
     if (existing) return existing;

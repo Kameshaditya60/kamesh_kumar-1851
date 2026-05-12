@@ -14,7 +14,7 @@ export class AdminController {
 
   @Post('users')
   async createUser(@Body() dto: CreateUserDto) {
-    const user = await this.users.create(dto);
+    const user = await this.users.create({ email: dto.email, password: dto.password });
     return {
       id: user.id,
       email: user.email,
