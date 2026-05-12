@@ -5,6 +5,7 @@ import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { Brand } from './brands/brand.entity';
 import { SeedersModule } from './seeders/seeders.module';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
@@ -21,7 +22,7 @@ import { UsersModule } from './users/users.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [User],
+        entities: [User, Brand],
         migrations: [__dirname + '/migrations/*.{js,ts}'],
         migrationsRun: true,
         synchronize: false,
