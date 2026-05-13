@@ -18,6 +18,14 @@ export class UsersService {
     return this.users.findOne({ where: { email } });
   }
 
+  findByEmailForAuth(email: string): Promise<User | null> {
+    return this.users
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
   async findById(id: string): Promise<User> {
     const user = await this.users.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
