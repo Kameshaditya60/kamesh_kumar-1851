@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Role } from '../users/role.enum';
+import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
+import { BrandStatus } from './enums/brand-status.enum';
 import { Brand } from './brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
@@ -17,7 +18,7 @@ export class BrandsService {
   constructor(
     @InjectRepository(Brand)
     private readonly brands: Repository<Brand>,
-  ) {}
+  ) { }
 
   findAll(): Promise<Brand[]> {
     return this.brands.find({
@@ -73,6 +74,12 @@ export class BrandsService {
     if (dto.name !== undefined) brand.name = dto.name;
     if (dto.description !== undefined) brand.description = dto.description;
     if (dto.logoUrl !== undefined) brand.logoUrl = dto.logoUrl;
+    return this.brands.save(brand);
+  }
+
+  async updateStatus(id: number, status: BrandStatus): Promise<Brand> {
+    const brand = await this.findById(id);
+    brand.status = status;
     return this.brands.save(brand);
   }
 
