@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
@@ -13,12 +14,14 @@ import { Brand } from './brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
+const BCRYPT_ROUNDS = 10;
+
 @Injectable()
 export class BrandsService {
   constructor(
     @InjectRepository(Brand)
     private readonly brands: Repository<Brand>,
-  ) { }
+  ) {}
 
   findAll(): Promise<Brand[]> {
     return this.brands.find({
@@ -70,11 +73,45 @@ export class BrandsService {
   }
 
   async update(id: number, dto: UpdateBrandDto): Promise<Brand> {
-    const brand = await this.findById(id);
-    if (dto.name !== undefined) brand.name = dto.name;
-    if (dto.description !== undefined) brand.description = dto.description;
-    if (dto.logoUrl !== undefined) brand.logoUrl = dto.logoUrl;
-    return this.brands.save(brand);
+    return this.brands.manager.transaction(async (manager) => {
+      const brands = manager.getRepository(Brand);
+      const users = manager.getRepository(User);
+
+      const brand = await brands.findOne({ where: { id } });
+      if (!brand) throw new NotFoundException(`Brand ${id} not found`);
+
+      if (dto.name !== undefined) brand.name = dto.name;
+      if (dto.description !== undefined) brand.description = dto.description;
+      if (dto.logoUrl !== undefined) brand.logoUrl = dto.logoUrl;
+      await brands.save(brand);
+
+      if (dto.email !== undefined || dto.password !== undefined) {
+        const owner = await users.findOne({ where: { brandId: id } });
+        if (!owner) {
+          throw new BadRequestException(
+            `Brand ${id} has no bound user to update credentials on`,
+          );
+        }
+
+        if (dto.email !== undefined && dto.email !== owner.email) {
+          const collision = await users.findOne({
+            where: { email: dto.email },
+          });
+          if (collision && collision.id !== owner.id) {
+            throw new ConflictException('Email already in use');
+          }
+          owner.email = dto.email;
+        }
+
+        if (dto.password !== undefined) {
+          owner.password = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+        }
+
+        await users.save(owner);
+      }
+
+      return brand;
+    });
   }
 
   async updateStatus(id: number, status: BrandStatus): Promise<Brand> {
