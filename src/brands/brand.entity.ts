@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../users/user.entity';
+import { BrandStatus } from './enums/brand-status.enum';
 
 @Entity({ name: 'brands' })
 export class Brand {
@@ -22,6 +23,13 @@ export class Brand {
 
   @Column({ type: 'varchar', nullable: true })
   logoUrl!: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: BrandStatus,
+    default: BrandStatus.DISAPPROVED,
+  })
+  status!: BrandStatus;
 
   @Column({ type: 'uuid' })
   createdById!: string;
