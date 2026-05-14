@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Brand } from './brands/brand.entity';
 import { BrandsModule } from './brands/brands.module';
+import { MailModule } from './mail/mail.module';
 import { SeedersModule } from './seeders/seeders.module';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     AdminModule,
     BrandsModule,
+    MailModule,
     SeedersModule,
   ],
   controllers: [AppController],
