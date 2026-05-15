@@ -9,30 +9,35 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { AdminOnly } from '../admin/admin-only.decorator';
 import { AuthenticatedUser, CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BrandOwnerOrAdminGuard } from './brand-owner-or-admin.guard';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandStatusDto } from './dto/update-brand-status.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Controller('brands')
-@AdminOnly()
 export class BrandsController {
   constructor(private readonly brands: BrandsService) {}
 
   @Get()
+  @AdminOnly()
   list() {
     return this.brands.findAll();
   }
 
   @Get(':id')
+  @AdminOnly()
   getOne(@Param('id', ParseIntPipe) id: number) {
     return this.brands.findById(id);
   }
 
   @Post()
+  @AdminOnly()
   create(
     @Body() dto: CreateBrandDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +46,7 @@ export class BrandsController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, BrandOwnerOrAdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateBrandDto,
@@ -49,6 +55,7 @@ export class BrandsController {
   }
 
   @Patch(':id/status')
+  @AdminOnly()
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateBrandStatusDto,
@@ -57,6 +64,7 @@ export class BrandsController {
   }
 
   @Delete(':id')
+  @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.brands.delete(id);
