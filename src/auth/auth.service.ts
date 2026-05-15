@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '../users/role.enum';
+import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { JwtPayload } from './jwt-payload.type';
@@ -15,7 +15,7 @@ export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   async login(email: string, password: string): Promise<AuthResult> {
     const user = await this.users.findByEmailForAuth(email);

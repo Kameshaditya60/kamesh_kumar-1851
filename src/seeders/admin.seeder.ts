@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '../users/role.enum';
+import { Role } from '../users/enums/role.enum';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class AdminSeeder implements OnApplicationBootstrap {
   constructor(
     private readonly users: UsersService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   async onApplicationBootstrap() {
     const email = this.config.get<string>('ADMIN_EMAIL') ?? 'admin@email.com';
