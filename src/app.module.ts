@@ -5,6 +5,7 @@ import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { Article } from './articles/article.entity';
+import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { BrandAuthor } from './brands/brand-author.entity';
 import { Brand } from './brands/brand.entity';
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     AdminModule,
     BrandsModule,
+    ArticlesModule,
     MailModule,
     SeedersModule,
   ],
