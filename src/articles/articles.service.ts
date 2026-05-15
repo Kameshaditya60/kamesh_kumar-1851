@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/current-user.decorator';
+import { BrandAuthor } from '../brands/brand-author.entity';
 import { Brand } from '../brands/brand.entity';
 import { Role } from '../users/enums/role.enum';
 import { Article } from './article.entity';
@@ -30,7 +31,7 @@ export class ArticlesService {
       throw new NotFoundException(`Brand ${dto.brandId} not found`);
     }
 
-    this.assertCanWriteFor(dto.brandId, actor);
+    await this.assertCanWriteFor(dto.brandId, actor);
 
     const article = this.articles.create({
       title: dto.title,
@@ -64,6 +65,12 @@ export class ArticlesService {
         order: { createdAt: 'DESC' },
       });
     }
+    if (actor.role === Role.AUTHOR) {
+      return this.articles.find({
+        where: { authorId: actor.id },
+        order: { createdAt: 'DESC' },
+      });
+    }
     throw new ForbiddenException();
   }
 
@@ -85,9 +92,18 @@ export class ArticlesService {
     await this.articles.delete({ id });
   }
 
-  private assertCanWriteFor(brandId: number, actor: AuthenticatedUser): void {
+  private async assertCanWriteFor(
+    brandId: number,
+    actor: AuthenticatedUser,
+  ): Promise<void> {
     if (actor.role === Role.ADMIN) return;
     if (actor.role === Role.BRAND && actor.brandId === brandId) return;
+    if (actor.role === Role.AUTHOR) {
+      const approval = await this.articles.manager
+        .getRepository(BrandAuthor)
+        .findOne({ where: { brandId, authorId: actor.id } });
+      if (approval) return;
+    }
     throw new ForbiddenException(
       'You cannot write articles for this brand',
     );
@@ -96,12 +112,14 @@ export class ArticlesService {
   private assertCanRead(article: Article, actor: AuthenticatedUser): void {
     if (actor.role === Role.ADMIN) return;
     if (actor.role === Role.BRAND && article.brandId === actor.brandId) return;
+    if (actor.role === Role.AUTHOR && article.authorId === actor.id) return;
     throw new ForbiddenException('You cannot view this article');
   }
 
   private assertCanModify(article: Article, actor: AuthenticatedUser): void {
     if (actor.role === Role.ADMIN) return;
     if (actor.role === Role.BRAND && article.brandId === actor.brandId) return;
+    if (actor.role === Role.AUTHOR && article.authorId === actor.id) return;
     throw new ForbiddenException('You cannot modify this article');
   }
 }

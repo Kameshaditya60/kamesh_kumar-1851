@@ -25,7 +25,7 @@ import { UpdateArticleDto } from './dto/update-article.dto';
 
 @Controller('articles')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.BRAND)
+@Roles(Role.ADMIN, Role.BRAND, Role.AUTHOR)
 export class ArticlesController {
   constructor(private readonly articles: ArticlesService) {}
 
