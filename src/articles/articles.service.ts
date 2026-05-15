@@ -39,11 +39,15 @@ export class ArticlesService {
       brandId: dto.brandId,
       authorId: actor.id,
     });
-    return this.articles.save(article);
+    const saved = await this.articles.save(article);
+    return this.findById(saved.id);
   }
 
   async findById(id: number): Promise<Article> {
-    const article = await this.articles.findOne({ where: { id } });
+    const article = await this.articles.findOne({
+      where: { id },
+      relations: { author: true, brand: true },
+    });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
     return article;
   }
@@ -55,20 +59,24 @@ export class ArticlesService {
   }
 
   async list(actor: AuthenticatedUser): Promise<Article[]> {
+    const baseOptions = {
+      relations: { author: true, brand: true },
+      order: { createdAt: 'DESC' as const },
+    };
     if (actor.role === Role.ADMIN) {
-      return this.articles.find({ order: { createdAt: 'DESC' } });
+      return this.articles.find(baseOptions);
     }
     if (actor.role === Role.BRAND) {
       if (actor.brandId === null) return [];
       return this.articles.find({
+        ...baseOptions,
         where: { brandId: actor.brandId },
-        order: { createdAt: 'DESC' },
       });
     }
     if (actor.role === Role.AUTHOR) {
       return this.articles.find({
+        ...baseOptions,
         where: { authorId: actor.id },
-        order: { createdAt: 'DESC' },
       });
     }
     throw new ForbiddenException();
