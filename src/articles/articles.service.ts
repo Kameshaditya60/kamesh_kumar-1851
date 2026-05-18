@@ -12,6 +12,7 @@ import { Role } from '../users/enums/role.enum';
 import { Article } from './article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { ArticleStatus } from './enums/article-status.enum';
 
 @Injectable()
 export class ArticlesService {
@@ -98,6 +99,15 @@ export class ArticlesService {
     const article = await this.findById(id);
     this.assertCanModify(article, actor);
     await this.articles.delete({ id });
+  }
+
+  async updateStatus(id: number, status: ArticleStatus): Promise<Article> {
+    const article = await this.findById(id);
+    article.status = status;
+    if (status === ArticleStatus.PUBLISHED && article.publishedAt === null) {
+      article.publishedAt = new Date();
+    }
+    return this.articles.save(article);
   }
 
   private async assertCanWriteFor(
