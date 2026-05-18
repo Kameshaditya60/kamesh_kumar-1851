@@ -11,8 +11,18 @@ import { Brand } from '../brands/brand.entity';
 import { Role } from '../users/enums/role.enum';
 import { Article } from './article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
+import { ListPublicArticlesDto } from './dto/list-public-articles.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { ArticleSortBy } from './enums/article-sort-by.enum';
 import { ArticleStatus } from './enums/article-status.enum';
+import { SortOrder } from './enums/sort-order.enum';
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}
 
 @Injectable()
 export class ArticlesService {
@@ -99,6 +109,54 @@ export class ArticlesService {
     const article = await this.findById(id);
     this.assertCanModify(article, actor);
     await this.articles.delete({ id });
+  }
+
+  async listPublic(
+    query: ListPublicArticlesDto,
+  ): Promise<PaginatedResult<Article>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const sortBy = query.sortBy ?? ArticleSortBy.PublishedAt;
+    const direction: 'ASC' | 'DESC' =
+      (query.order ?? SortOrder.Desc) === SortOrder.Asc ? 'ASC' : 'DESC';
+
+    const qb = this.articles
+      .createQueryBuilder('article')
+      .leftJoinAndSelect('article.author', 'author')
+      .leftJoinAndSelect('article.brand', 'brand')
+      .where('article.status = :status', { status: ArticleStatus.PUBLISHED });
+
+    if (query.brandId !== undefined) {
+      qb.andWhere('article.brandId = :brandId', { brandId: query.brandId });
+    }
+
+    if (query.q && query.q.trim()) {
+      qb.andWhere('(article.title ILIKE :q OR article.content ILIKE :q)', {
+        q: `%${query.q.trim()}%`,
+      });
+    }
+
+    qb.orderBy(`article.${sortBy}`, direction)
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      currentPage: page,
+    };
+  }
+
+  async getPublicById(id: number): Promise<Article> {
+    const article = await this.articles.findOne({
+      where: { id, status: ArticleStatus.PUBLISHED },
+      relations: { author: true, brand: true },
+    });
+    if (!article) throw new NotFoundException(`Article ${id} not found`);
+    return article;
   }
 
   async updateStatus(id: number, status: ArticleStatus): Promise<Article> {
