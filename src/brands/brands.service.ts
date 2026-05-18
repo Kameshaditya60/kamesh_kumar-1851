@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
+import { BrandAuthor } from './brand-author.entity';
 import { BrandStatus } from './enums/brand-status.enum';
 import { Brand } from './brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -123,5 +124,36 @@ export class BrandsService {
   async delete(id: number): Promise<void> {
     const result = await this.brands.delete({ id });
     if (!result.affected) throw new NotFoundException(`Brand ${id} not found`);
+  }
+
+  async assignAuthor(brandId: number, authorId: string): Promise<BrandAuthor> {
+    return this.brands.manager.transaction(async (manager) => {
+      const brands = manager.getRepository(Brand);
+      const users = manager.getRepository(User);
+      const brandAuthors = manager.getRepository(BrandAuthor);
+
+      const brand = await brands.findOne({ where: { id: brandId } });
+      if (!brand) throw new NotFoundException(`Brand ${brandId} not found`);
+
+      const author = await users.findOne({ where: { id: authorId } });
+      if (!author) throw new NotFoundException(`User ${authorId} not found`);
+      if (author.role !== Role.AUTHOR) {
+        throw new BadRequestException(
+          'Only users with role AUTHOR can be assigned to a brand',
+        );
+      }
+
+      const existing = await brandAuthors.findOne({
+        where: { brandId, authorId },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Author ${authorId} is already assigned to brand ${brandId}`,
+        );
+      }
+
+      const row = brandAuthors.create({ brandId, authorId });
+      return brandAuthors.save(row);
+    });
   }
 }
