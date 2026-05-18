@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
-import { Role } from './role.enum';
+import { Role } from './enums/role.enum';
 import { User } from './user.entity';
 
 const BCRYPT_ROUNDS = 10;
@@ -12,7 +12,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly users: Repository<User>,
-  ) {}
+  ) { }
 
   findByEmail(email: string): Promise<User | null> {
     return this.users.findOne({ where: { email } });
@@ -33,20 +33,20 @@ export class UsersService {
   }
 
   async create(params: {
-  email: string;
-  password: string;
-  role?: Role | null;
-}): Promise<User> {
-  const existing = await this.findByEmail(params.email);
-  if (existing) throw new ConflictException('Email already in use');
-  const hash = await bcrypt.hash(params.password, BCRYPT_ROUNDS);
-  const user = this.users.create({
-    email: params.email,
-    password: hash,
-    role: params.role ?? null,
-  });
-  return this.users.save(user);
-}
+    email: string;
+    password: string;
+    role?: Role | null;
+  }): Promise<User> {
+    const existing = await this.findByEmail(params.email);
+    if (existing) throw new ConflictException('Email already in use');
+    const hash = await bcrypt.hash(params.password, BCRYPT_ROUNDS);
+    const user = this.users.create({
+      email: params.email,
+      password: hash,
+      role: params.role ?? null,
+    });
+    return this.users.save(user);
+  }
 
 
   async ensureExists(params: {
