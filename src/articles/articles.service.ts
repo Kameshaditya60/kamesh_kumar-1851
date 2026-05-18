@@ -11,6 +11,7 @@ import { Brand } from '../brands/brand.entity';
 import { Role } from '../users/enums/role.enum';
 import { Article } from './article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
+import { ListArticlesDto } from './dto/list-articles.dto';
 import { ListPublicArticlesDto } from './dto/list-public-articles.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticleSortBy } from './enums/article-sort-by.enum';
@@ -69,28 +70,58 @@ export class ArticlesService {
     return article;
   }
 
-  async list(actor: AuthenticatedUser): Promise<Article[]> {
-    const baseOptions = {
-      relations: { author: true, brand: true },
-      order: { createdAt: 'DESC' as const },
-    };
-    if (actor.role === Role.ADMIN) {
-      return this.articles.find(baseOptions);
+  async list(
+    actor: AuthenticatedUser,
+    query: ListArticlesDto,
+  ): Promise<PaginatedResult<Article>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const sortBy = query.sortBy ?? ArticleSortBy.CreatedAt;
+    const direction: 'ASC' | 'DESC' =
+      (query.order ?? SortOrder.Desc) === SortOrder.Asc ? 'ASC' : 'DESC';
+
+    if (actor.role === Role.BRAND && actor.brandId === null) {
+      return { data: [], total: 0, totalPages: 1, currentPage: page };
     }
+
+    const qb = this.articles
+      .createQueryBuilder('article')
+      .leftJoinAndSelect('article.author', 'author')
+      .leftJoinAndSelect('article.brand', 'brand');
+
     if (actor.role === Role.BRAND) {
-      if (actor.brandId === null) return [];
-      return this.articles.find({
-        ...baseOptions,
-        where: { brandId: actor.brandId },
+      qb.andWhere('article.brandId = :scopedBrandId', {
+        scopedBrandId: actor.brandId,
+      });
+    } else if (actor.role === Role.AUTHOR) {
+      qb.andWhere('article.authorId = :scopedAuthorId', {
+        scopedAuthorId: actor.id,
+      });
+    } else if (actor.role !== Role.ADMIN) {
+      throw new ForbiddenException();
+    }
+
+    if (query.status !== undefined) {
+      qb.andWhere('article.status = :status', { status: query.status });
+    }
+    if (query.brandId !== undefined && actor.role !== Role.BRAND) {
+      qb.andWhere('article.brandId = :filterBrandId', {
+        filterBrandId: query.brandId,
       });
     }
-    if (actor.role === Role.AUTHOR) {
-      return this.articles.find({
-        ...baseOptions,
-        where: { authorId: actor.id },
-      });
-    }
-    throw new ForbiddenException();
+
+    qb.orderBy(`article.${sortBy}`, direction)
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      currentPage: page,
+    };
   }
 
   async update(

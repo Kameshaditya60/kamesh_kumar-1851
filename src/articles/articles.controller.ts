@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Role } from '../users/enums/role.enum';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
+import { ListArticlesDto } from './dto/list-articles.dto';
 import { UpdateArticleStatusDto } from './dto/update-article-status.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 
@@ -39,8 +41,11 @@ export class ArticlesController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.articles.list(user);
+  list(
+    @Query() query: ListArticlesDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.articles.list(user, query);
   }
 
   @Get(':id')
