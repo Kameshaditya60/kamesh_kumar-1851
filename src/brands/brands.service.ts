@@ -7,12 +7,17 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { Article } from '../articles/article.entity';
+import { PaginatedResult } from '../articles/articles.service';
+import { ArticleStatus } from '../articles/enums/article-status.enum';
+import { AuthenticatedUser } from '../auth/current-user.decorator';
 import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
 import { BrandAuthor } from './brand-author.entity';
 import { BrandStatus } from './enums/brand-status.enum';
 import { Brand } from './brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
+import { ListBrandsDto } from './dto/list-brands.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 const BCRYPT_ROUNDS = 10;
@@ -31,12 +36,80 @@ export class BrandsService {
     });
   }
 
+  async findAllPaginated(
+    query: ListBrandsDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResult<Brand>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const qb = this.brands
+      .createQueryBuilder('brand')
+      .leftJoinAndSelect('brand.createdBy', 'createdBy')
+      .orderBy('brand.createdAt', 'DESC');
+
+    if (actor.role !== Role.ADMIN) {
+      qb.andWhere('brand.status = :approved', {
+        approved: BrandStatus.APPROVED,
+      });
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      currentPage: page,
+    };
+  }
+
   async findById(id: number): Promise<Brand> {
     const brand = await this.brands.findOne({
       where: { id },
       relations: { createdBy: true },
     });
     if (!brand) throw new NotFoundException(`Brand ${id} not found`);
+    return brand;
+  }
+
+  async findProfileById(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<Brand & { publishedArticleCount: number }> {
+    const brand = await this.brands.findOne({
+      where: { id },
+      relations: { createdBy: true },
+    });
+    if (
+      !brand ||
+      (brand.status === BrandStatus.DISAPPROVED && actor.role !== Role.ADMIN)
+    ) {
+      throw new NotFoundException(`Brand ${id} not found`);
+    }
+
+    const publishedArticleCount = await this.brands.manager
+      .getRepository(Article)
+      .count({
+        where: { brandId: id, status: ArticleStatus.PUBLISHED },
+      });
+
+    return Object.assign(brand, { publishedArticleCount });
+  }
+
+  async assertBrandVisible(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<Brand> {
+    const brand = await this.brands.findOne({ where: { id } });
+    if (
+      !brand ||
+      (brand.status === BrandStatus.DISAPPROVED && actor.role !== Role.ADMIN)
+    ) {
+      throw new NotFoundException(`Brand ${id} not found`);
+    }
     return brand;
   }
 
