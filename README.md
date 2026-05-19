@@ -1,85 +1,239 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Kamesh Kumar — Internship Project (1851)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + TypeORM + PostgreSQL backend for a multi-role content platform:
+admins manage everything, brands publish articles, and authors write for the
+brands they're approved for. A public feed surfaces only published articles.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- **NestJS 10** (Express platform)
+- **TypeScript 5**
+- **PostgreSQL** + **TypeORM 0.3** (migrations-based)
+- **Passport JWT** for auth
+- **class-validator** + **class-transformer** for DTO validation
+- **bcrypt** for password hashing
+- **@nestjs-modules/mailer** (nodemailer) for transactional mail
+- **Jest** + **supertest** for unit / e2e tests
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Quick start
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env             # then fill in DB + JWT + (optional) SMTP
+npm run migration:run            # applies all migrations
+npm run start:dev                # boots on http://localhost:3000
 ```
 
-## Compile and run the project
+The first boot also seeds a default admin account (`admin@email.com` /
+`admin`, configurable via env). Restart is idempotent — the seeder
+short-circuits if the admin already exists.
+
+## Configuration
+
+All config is env-driven via `@nestjs/config`. Copy `.env.example` to `.env`
+and fill in:
+
+```env
+PORT=3000
+
+# Postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=
+DB_PASSWORD=
+DB_NAME=
+
+# Auth
+JWT_SECRET=change-me-in-production
+JWT_EXPIRES_IN=1d
+
+# Default admin seeded on first boot
+ADMIN_EMAIL=admin@email.com
+ADMIN_PASSWORD=admin
+
+# SMTP (leave blank to disable real sending — emails are logged instead)
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_SECURE=false
+MAIL_USER=
+MAIL_PASS=
+MAIL_FROM=noreply@kamesh-1851.local
+```
+
+The mail service has a no-op fallback: if `MAIL_HOST` is blank,
+`MailService.sendBrandWelcomeEmail` logs the rendered email and returns —
+brand-user creation still succeeds. Useful for engineers who don't want to
+wire SMTP locally.
+
+## Database
+
+### Requirements
+
+- PostgreSQL 13+ (uses `gen_random_uuid()` / `uuid-ossp` and trusted enum
+  ALTER patterns).
+- A database the configured DB user owns (or has CREATE on `public`).
+- `uuid-ossp` extension installed in that database
+  (`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`).
+
+### Migrations
+
+The project uses managed migrations (no `synchronize: true`). All scripts go
+through `typeorm-ts-node-commonjs`:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run migration:generate -- src/migrations/<Name>   # diff against entities
+npm run migration:create   -- src/migrations/<Name>   # empty migration
+npm run migration:run                                 # apply pending
+npm run migration:revert                              # rollback last applied
+npm run migration:show                                # list applied / pending
 ```
 
-## Run tests
+`AppModule` is configured with `migrationsRun: true`, so a clean
+`npm run start:dev` will also apply any pending migrations on boot.
+
+## Project layout
+
+```
+src/
+  admin/         # admin-only endpoints + composed @AdminOnly() decorator
+  articles/      # Article entity, CRUD, public feed, status flow
+  auth/          # JwtStrategy, guards, decorators, login flow
+  brands/        # Brand + BrandAuthor entities, CRUD, profile reads
+  mail/          # MailerModule wrapper + welcome-email helper
+  migrations/    # generated TypeORM migrations
+  seeders/       # admin seeder (OnApplicationBootstrap)
+  users/         # User entity, UsersService, Role enum
+  app.module.ts  # composition root
+  data-source.ts # CLI DataSource for the typeorm CLI
+  main.ts        # bootstraps Nest + global ValidationPipe
+```
+
+## Authentication & roles
+
+JWT auth via `Passport`. Three roles: `ADMIN`, `BRAND`, `AUTHOR`.
+
+- Tokens carry `{ sub, email, role }` and are issued by `POST /auth/login`.
+- Every authenticated request triggers `JwtStrategy.validate`, which
+  re-fetches the user from the DB and attaches `{ id, email, role, brandId }`
+  to `req.user`. Deleted or revoked users stop working without a token
+  refresh.
+- Per-route gating uses one of three patterns:
+  - `@AdminOnly()` — composed decorator in `admin/`. Bundles `JwtAuthGuard`,
+    `RolesGuard`, and `@Roles(Role.ADMIN)`.
+  - `@UseGuards(JwtAuthGuard, BrandOwnerOrAdminGuard)` — `brands/` resource
+    where the brand-user owning the row may also write.
+  - `@UseGuards(JwtAuthGuard)` — endpoints open to any authenticated user;
+    visibility filtering happens in the service.
+
+## API surface
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/auth/login` | public | Returns `{ accessToken, user }` |
+| POST | `/admin/users` | ADMIN | Creates ADMIN, BRAND, or AUTHOR user. BRAND creates trigger a welcome email |
+| POST | `/admin/brands/:brandId/authors` | ADMIN | Approves an AUTHOR for a brand |
+| POST | `/brands` | ADMIN | Creates a brand, atomically binding it to an unbound BRAND user |
+| GET | `/brands` | any auth | Paginated. Non-admin sees only APPROVED |
+| GET | `/brands/:id` | any auth | Profile + `publishedArticleCount`. 404 if DISAPPROVED and caller is not admin |
+| GET | `/brands/:id/articles` | any auth | Paginated PUBLISHED articles. Brand visibility checked first |
+| PATCH | `/brands/:id` | ADMIN or brand owner | Updates brand fields + bound user credentials (transactional) |
+| PATCH | `/brands/:id/status` | ADMIN | Flip APPROVED / DISAPPROVED |
+| DELETE | `/brands/:id` | ADMIN | |
+| POST | `/articles` | ADMIN / BRAND (own brand) / AUTHOR (approved for brand) | |
+| GET | `/articles` | ADMIN / BRAND / AUTHOR | Paginated, role-scoped, optional status / brandId filter |
+| GET | `/articles/:id` | ADMIN / BRAND (own brand) / AUTHOR (own article) | |
+| PATCH | `/articles/:id` | Same as read scope | |
+| PATCH | `/articles/:id/status` | ADMIN | Flip DRAFT / PUBLISHED. Auto-sets `publishedAt` on first publish |
+| DELETE | `/articles/:id` | Same as read scope | |
+| GET | `/public/articles` | public | Paginated published articles. Query: `page, limit, sortBy, order, q, brandId` |
+| GET | `/public/articles/:id` | public | 404 for DRAFT — opaque to outsiders |
+
+### Common response shapes
+
+```jsonc
+// Paginated lists
+{
+  "data": [ /* ... */ ],
+  "total": 42,
+  "totalPages": 5,
+  "currentPage": 1
+}
+
+// Brand profile
+{
+  "id": 1,
+  "name": "Nike",
+  "status": "APPROVED",
+  "publishedArticleCount": 12,
+  "createdBy": { "id": "...", "email": "admin@...", "role": "ADMIN" },
+  /* ... */
+}
+
+// Article read
+{
+  "id": 1, "title": "...", "content": "...", "status": "PUBLISHED",
+  "publishedAt": "2026-05-15T...",
+  "brand": { /* ... */ },
+  "author": { "id": "...", "email": "bob@...", "role": "AUTHOR" /* no password */ },
+  /* ... */
+}
+```
+
+## Security notes
+
+- `User.password` is `{ select: false }`. The bcrypt hash is never returned
+  on a default query — only the dedicated `findByEmailForAuth` opts in via
+  `addSelect`.
+- Public signup was deliberately removed: every user enters through
+  `POST /admin/users`. This keeps the data invariant
+  (`ADMIN+brandId=NULL`, `BRAND+valid brandId`, `AUTHOR+brandId=NULL`)
+  enforceable in one place.
+- DISAPPROVED brands are invisible to non-admins. They return 404 (same as
+  a non-existent id) so DISAPPROVED ids can't be enumerated.
+- DRAFT articles return 404 from the public endpoint for the same reason.
+
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm test               # unit tests
+npm run test:watch     # watch mode
+npm run test:cov       # coverage
+npm run test:e2e       # e2e (uses test/jest-e2e.json)
 ```
 
-## Resources
+Unit tests sit beside source as `*.spec.ts`; e2e specs live in `test/` as
+`*.e2e-spec.ts` (separate Jest config — putting them in the wrong directory
+will silently be skipped by the other runner).
 
-Check out a few resources that may come in handy when working with NestJS:
+## Smoke testing the API
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Use any HTTP client (curl, Postman, Hoppscotch). The flow is:
 
-## Support
+1. `POST /auth/login` with the seeded admin credentials
+   (`admin@email.com` / `admin`) to get an `accessToken`.
+2. Send subsequent requests with `Authorization: Bearer <accessToken>`.
+3. To test brand- or author-scoped endpoints, first create those users
+   via `POST /admin/users` as admin, then log in as them to get their
+   tokens.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Build
 
-## Stay in touch
+```bash
+npm run build          # nest build → dist/
+npm run start:prod     # node dist/main
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+`nest-cli.json` has `deleteOutDir: true`, so `npm run build` clears `dist/`
+each run.
 
-## License
+## Convenience scripts
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+npm run lint           # eslint --fix over src/apps/libs/test
+npm run format         # prettier --write over src + test
+```
+
+## Useful TS-path note
+
+`tsconfig.json` does not currently set a `@/*` alias — imports inside `src/`
+use relative paths (`../auth/...`). Keep them relative for now.
