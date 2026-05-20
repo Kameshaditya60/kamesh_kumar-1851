@@ -220,7 +220,7 @@ export class BrandsService {
         where: { brandId, authorId },
       });
       if (existing) {
-        throw new ConflictException(
+        throw new BadRequestException(
           `Author ${authorId} is already assigned to brand ${brandId}`,
         );
       }
@@ -228,5 +228,53 @@ export class BrandsService {
       const row = brandAuthors.create({ brandId, authorId });
       return brandAuthors.save(row);
     });
+  }
+
+  async unassignAuthor(brandId: number, authorId: string): Promise<void> {
+    const brand = await this.brands.findOne({ where: { id: brandId } });
+    if (!brand) throw new NotFoundException(`Brand ${brandId} not found`);
+
+    const author = await this.brands.manager
+      .getRepository(User)
+      .findOne({ where: { id: authorId } });
+    if (!author) throw new NotFoundException(`Author ${authorId} not found`);
+
+    const brandAuthors = this.brands.manager.getRepository(BrandAuthor);
+    const row = await brandAuthors.findOne({ where: { brandId, authorId } });
+    if (!row) {
+      throw new BadRequestException(
+        `Author ${authorId} is not assigned to brand ${brandId}`,
+      );
+    }
+
+    await brandAuthors.delete({ id: row.id });
+  }
+
+  async listBrandAuthors(
+    brandId: number,
+    query: ListBrandsDto,
+  ): Promise<PaginatedResult<User>> {
+    const brand = await this.brands.findOne({ where: { id: brandId } });
+    if (!brand) throw new NotFoundException(`Brand ${brandId} not found`);
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const [rows, total] = await this.brands.manager
+      .getRepository(BrandAuthor)
+      .createQueryBuilder('ba')
+      .innerJoinAndSelect('ba.author', 'author')
+      .where('ba.brandId = :brandId', { brandId })
+      .orderBy('ba.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: rows.map((row) => row.author),
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      currentPage: page,
+    };
   }
 }

@@ -63,6 +63,15 @@ export class BrandsController {
     });
   }
 
+  @Get(':id/authors')
+  @UseGuards(JwtAuthGuard, BrandOwnerOrAdminGuard)
+  listBrandAuthors(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: ListBrandsDto,
+  ) {
+    return this.brands.listBrandAuthors(id, query);
+  }
+
   @Post()
   @AdminOnly()
   create(
