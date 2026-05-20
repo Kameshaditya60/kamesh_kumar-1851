@@ -15,6 +15,7 @@ import { Role } from '../users/enums/role.enum';
 import { User } from '../users/user.entity';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { ListAuthorsDto } from './dto/list-authors.dto';
+import { UpdateAuthorProfileDto } from './dto/update-author-profile.dto';
 
 const BCRYPT_ROUNDS = 10;
 const PG_FK_VIOLATION = '23503';
@@ -79,6 +80,35 @@ export class AuthorsService {
     const author = await this.findAuthorOrThrow(id);
     const assignedBrands = await this.getAssignedBrands(id);
     return Object.assign(author, { assignedBrands });
+  }
+
+  async updateOwnProfile(
+    userId: string,
+    dto: UpdateAuthorProfileDto,
+  ): Promise<User & { assignedBrands: Brand[] }> {
+    const author = await this.findAuthorOrThrow(userId);
+
+    if (dto.email !== undefined && dto.email !== author.email) {
+      const collision = await this.users.findOne({
+        where: { email: dto.email },
+      });
+      if (collision && collision.id !== author.id) {
+        throw new BadRequestException('Email already in use');
+      }
+      author.email = dto.email;
+    }
+
+    if (dto.name !== undefined) {
+      author.name = dto.name;
+    }
+
+    if (dto.password !== undefined) {
+      author.password = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    }
+
+    await this.users.save(author);
+
+    return this.getAuthorById(userId);
   }
 
   async deleteAuthor(id: string): Promise<void> {
