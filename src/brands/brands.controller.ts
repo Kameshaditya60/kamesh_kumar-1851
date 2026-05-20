@@ -9,31 +9,58 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AdminOnly } from '../admin/admin-only.decorator';
+import { ArticlesService } from '../articles/articles.service';
 import { AuthenticatedUser, CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandOwnerOrAdminGuard } from './brand-owner-or-admin.guard';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
+import { ListBrandsDto } from './dto/list-brands.dto';
 import { UpdateBrandStatusDto } from './dto/update-brand-status.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Controller('brands')
 export class BrandsController {
-  constructor(private readonly brands: BrandsService) {}
+  constructor(
+    private readonly brands: BrandsService,
+    private readonly articles: ArticlesService,
+  ) {}
 
   @Get()
-  @AdminOnly()
-  list() {
-    return this.brands.findAll();
+  @UseGuards(JwtAuthGuard)
+  list(
+    @Query() query: ListBrandsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.brands.findAllPaginated(query, user);
   }
 
   @Get(':id')
-  @AdminOnly()
-  getOne(@Param('id', ParseIntPipe) id: number) {
-    return this.brands.findById(id);
+  @UseGuards(JwtAuthGuard)
+  getOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.brands.findProfileById(id, user);
+  }
+
+  @Get(':id/articles')
+  @UseGuards(JwtAuthGuard)
+  async listArticles(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: ListBrandsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.brands.assertBrandVisible(id, user);
+    return this.articles.listPublic({
+      brandId: id,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
   @Post()
