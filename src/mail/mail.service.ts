@@ -19,12 +19,12 @@ export class MailService {
     }
   }
 
-  async sendBrandWelcomeEmail(to: string, password: string): Promise<void> {
-    const subject = 'Your brand account credentials';
+  async sendWelcomeEmail(to: string, password: string): Promise<void> {
+    const subject = 'Your account credentials';
     const text = [
       'Hi,',
       '',
-      'A brand account has been created for you.',
+      'An account has been created for you.',
       '',
       `Login email : ${to}`,
       `Password    : ${password}`,

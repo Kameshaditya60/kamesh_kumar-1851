@@ -1,4 +1,14 @@
-import { Body, Controller, Param, ParseIntPipe, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { BrandsService } from '../brands/brands.service';
 import { MailService } from '../mail/mail.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -25,7 +35,7 @@ export class AdminController {
     });
 
     if (user.role === Role.BRAND) {
-      await this.mail.sendBrandWelcomeEmail(user.email, dto.password);
+      await this.mail.sendWelcomeEmail(user.email, dto.password);
     }
 
     return {
@@ -43,5 +53,14 @@ export class AdminController {
     @Body() dto: AssignAuthorDto,
   ) {
     return this.brands.assignAuthor(brandId, dto.authorId);
+  }
+
+  @Delete('brands/:brandId/authors/:authorId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unassignAuthor(
+    @Param('brandId', ParseIntPipe) brandId: number,
+    @Param('authorId', ParseUUIDPipe) authorId: string,
+  ) {
+    await this.brands.unassignAuthor(brandId, authorId);
   }
 }

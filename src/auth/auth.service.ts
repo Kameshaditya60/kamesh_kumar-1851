@@ -7,7 +7,12 @@ import { JwtPayload } from './jwt-payload.type';
 
 export interface AuthResult {
   accessToken: string;
-  user: { id: string; email: string; role: Role | null };
+  user: {
+    id: string;
+    email: string;
+    role: Role | null;
+    brandId: number | null;
+  };
 }
 
 @Injectable()
@@ -35,7 +40,12 @@ export class AuthService {
     };
     return {
       accessToken: this.jwt.sign(payload),
-      user: { id: user.id, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        brandId: user.brandId,
+      },
     };
   }
 }
