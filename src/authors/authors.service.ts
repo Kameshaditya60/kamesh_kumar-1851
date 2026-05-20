@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { Article } from '../articles/article.entity';
 import { PaginatedResult } from '../articles/articles.service';
 import { BrandAuthor } from '../brands/brand-author.entity';
 import { Brand } from '../brands/brand.entity';
@@ -18,7 +19,6 @@ import { ListAuthorsDto } from './dto/list-authors.dto';
 import { UpdateAuthorProfileDto } from './dto/update-author-profile.dto';
 
 const BCRYPT_ROUNDS = 10;
-const PG_FK_VIOLATION = '23503';
 
 @Injectable()
 export class AuthorsService {
@@ -113,20 +113,21 @@ export class AuthorsService {
 
   async deleteAuthor(id: string): Promise<void> {
     await this.findAuthorOrThrow(id);
-    try {
-      // brand_authors rows cascade away via the ON DELETE CASCADE FK.
-      await this.users.delete({ id });
-    } catch (err) {
-      if (
-        err instanceof QueryFailedError &&
-        (err.driverError as { code?: string }).code === PG_FK_VIOLATION
-      ) {
-        throw new ConflictException(
-          'Author has articles and cannot be deleted. Reassign or delete their articles first.',
-        );
-      }
-      throw err;
+
+    // Article.authorId is ON DELETE RESTRICT, so an author with articles
+    // cannot be removed. Check up front and return a clear 409 rather
+    // than letting the FK violation surface as a 500.
+    const articleCount = await this.users.manager
+      .getRepository(Article)
+      .count({ where: { authorId: id } });
+    if (articleCount > 0) {
+      throw new ConflictException(
+        'Author has articles and cannot be deleted. Reassign or delete their articles first.',
+      );
     }
+
+    // brand_authors rows cascade away via their ON DELETE CASCADE FK.
+    await this.users.delete({ id });
   }
 
   private async findAuthorOrThrow(id: string): Promise<User> {
