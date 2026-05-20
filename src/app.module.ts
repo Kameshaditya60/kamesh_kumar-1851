@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { Article } from './articles/article.entity';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
+import { AuthorsModule } from './authors/authors.module';
 import { BrandAuthor } from './brands/brand-author.entity';
 import { Brand } from './brands/brand.entity';
 import { BrandsModule } from './brands/brands.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     AdminModule,
     BrandsModule,
     ArticlesModule,
+    AuthorsModule,
     MailModule,
     SeedersModule,
   ],

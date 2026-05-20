@@ -25,7 +25,7 @@ export class AdminController {
     });
 
     if (user.role === Role.BRAND) {
-      await this.mail.sendBrandWelcomeEmail(user.email, dto.password);
+      await this.mail.sendWelcomeEmail(user.email, dto.password);
     }
 
     return {
